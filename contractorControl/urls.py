@@ -15,7 +15,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from contractorControl import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
+    # time clock endpoints
+    path("api/clock-in/", views.clock_in),
+    path("api/clock-out/", views.clock_out),
 ]
