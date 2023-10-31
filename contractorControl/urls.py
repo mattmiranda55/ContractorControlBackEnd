@@ -23,4 +23,10 @@ urlpatterns = [
     # time clock endpoints
     path("api/clock-in/", views.clock_in),
     path("api/clock-out/", views.clock_out),
+    path("api/time-clock/<int:employee_id>/", views.get_employee_time_clocks),
+    path("api/all-time-clocks/", views.get_all_time_clocks),
+
+    # inventory endpoints
+    path("api/create-new-item/", views.create_new_item),
+    path("api/update-item-quantity/", views.update_item_quantity),
 ]
