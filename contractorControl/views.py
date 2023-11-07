@@ -302,3 +302,23 @@ def change_password(request):
         return JsonResponse({'message': 'Password changed successfully'}, status=200)
     else:
         return JsonResponse({'message': 'Current password is incorrect'}, status=400)
+    
+@api_view(['POST'])
+def register(request):
+    data = json.loads(request.body)
+    email = data.get('email')
+    password = data.get('password')
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+
+    existingUser = User.objects.filter(email=email).first()
+
+    if existingUser:
+        return JsonResponse({'message': 'Email already taken'}, status=505)
+    
+    user = User(email=email, username=email, first_name=first_name, last_name=last_name)
+    user.set_password(password)
+    user.save()
+    
+    return JsonResponse({'message': 'User created successfully'}, status=200)
+
