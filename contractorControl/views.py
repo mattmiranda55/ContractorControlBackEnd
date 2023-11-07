@@ -1,14 +1,29 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import status
 from datetime import datetime
-from .models import TimeClock, Employee, Items
-from .serializers import TimeClockSerializer, ItemsSerializer
+from .models import TimeClock, Items, Employee
+from .serializers import TimeClockSerializer, ItemsSerializer, EmployeeSerializer, UserSerializer
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+import jwt
 
-
+#########################################
+#
+# Clock In/Out Views
+#
+#########################################
 @api_view(['POST'])
 def clock_in(request):
-    employee_id = request.data.get('employee_id')
+    data = json.loads(request.body)
+    employee_id = data.get('employee_id')
+    token = data.get('jwt')
+
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+    
     current_time = datetime.now()
 
     # Check if employee exists
@@ -26,7 +41,13 @@ def clock_in(request):
 
 @api_view(['POST'])
 def clock_out(request):
-    employee_id = request.data.get('employee_id')
+    data = json.loads(request.body)
+    employee_id = data.get('employee_id')
+    token = data.get('jwt')
+
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+    
     current_time = datetime.now()
 
     # Check if employee exists
@@ -43,30 +64,52 @@ def clock_out(request):
     return Response(serializer.data, 400)
 
 @api_view(['GET'])
-def get_employee_time_clocks(request):
-    employee_id = request.data.get('employee_id')
+def get_employee_time_clocks(request, id):
+    data = json.loads(request.body)
+    token = data.get('jwt')
 
-    # Check if employee exists
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+
     try:
-        employee = User.objects.get(id=employee_id)
+        user = User.objects.get(pk=id)
     except User.DoesNotExist:
-        return Response({'error': 'Employee does not exist'})
-
-    time_clocks = TimeClock.objects.filter(employee=employee.id)
-    serializer = TimeClockSerializer(time_clocks, many=True)
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    timeclocks = TimeClock.objects.filter(employee=user.id)
+    serializer = TimeClockSerializer(timeclocks, many=True)
+    
     return Response(serializer.data)
 
 @api_view(['GET'])
 def get_all_time_clocks(request):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+
     time_clocks = TimeClock.objects.all()
     serializer = TimeClockSerializer(time_clocks, many=True)
     return Response(serializer.data)
 
+#########################################
+#
+# Inventory Views
+#
+#########################################
+
 @api_view(['POST'])
 def create_new_item(request):
-    item_name = request.data.get('item_name')
-    item_amount = request.data.get('item_amount')
-    item_owner = request.data.get('item_owner')
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+    
+    item_name = data.get('item_name')
+    item_amount = data.get('item_amount')
+    item_owner = data.get('item_owner')
 
     # Check if item owner exists
     try:
@@ -83,8 +126,14 @@ def create_new_item(request):
 
 @api_view(['POST'])
 def update_item_quantity(request):
-    item_id = request.data.get('item_id')
-    item_amount = request.data.get('item_amount')
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+    
+    item_id = data.get('item_id')
+    item_amount = data.get('item_amount')
 
     # Check if item exists
     try:
@@ -102,3 +151,88 @@ def update_item_quantity(request):
 
         serializer = ItemsSerializer(item)
         return Response(serializer.data)
+    
+@api_view(['GET'])
+def get_users_items(request, id):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    
+    if not token: 
+        return JsonResponse({'message': 'You are not logged in!'})
+    
+    try:
+        user = User.objects.get(pk=id)
+    except User.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    items = Items.objects.filter(itemOwner=user.id)
+    serializer = ItemsSerializer(items, many=True)
+    
+    return Response(serializer.data)
+
+#########################################
+#
+# User Authentication Views
+#
+#########################################
+
+@api_view(['POST'])
+@csrf_exempt
+def login(request):
+    data = json.loads(request.body)
+    email = data.get('email')
+    password = data.get('password')
+    
+    user = User.objects.filter(email=email).first()
+    
+    if user is None:
+        return JsonResponse({'message': 'Invalid email'})
+    
+    if not user.check_password(password):
+        return JsonResponse({'message': 'Incorrect Password'})
+    
+    payload = {
+        'id': user.id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=120),
+        'iat': datetime.datetime.utcnow()
+    }
+    token = jwt.encode(payload, 'CC', algorithm='HS256')  # 'CC' is the secret key needed for decryption
+
+    # frontend will store token into localstorage
+    return JsonResponse({'jwt': token})       
+
+@api_view(['POST'])
+def logout(request):        
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    
+    if not token:
+        return JsonResponse({"message": "You are not logged in!"})
+
+    # delete cookie from session 
+    response = Response()
+    response.data = {
+        "message": "Successfully Logged Out"
+    }
+    
+    return response
+    
+@api_view(['POST'])
+def get_user_info(request):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    
+    if not token:
+        return JsonResponse({'message': 'You are not signed in'}) 
+
+    try:
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'}) 
+    
+    user = User.objects.filter(id=payload['id']).first()
+    employee = Employee.objects.filter(user_id=payload['id']).first()
+    user_serializer = UserSerializer(user)
+    employee_serializer = EmployeeSerializer(employee)
+    
+    return Response([user_serializer.data, employee_serializer.data]) 
