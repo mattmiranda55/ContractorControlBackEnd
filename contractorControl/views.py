@@ -5,6 +5,7 @@ from datetime import datetime
 from .models import TimeClock, Items, Employee
 from .serializers import TimeClockSerializer, ItemsSerializer, EmployeeSerializer, UserSerializer
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
@@ -236,3 +237,68 @@ def get_user_info(request):
     employee_serializer = EmployeeSerializer(employee)
     
     return Response([user_serializer.data, employee_serializer.data]) 
+
+@api_view(['POST'])
+def change_username(request):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    password = data.get('password')
+    new_username = data.get('new_username')
+
+
+    if not token:
+        return JsonResponse({"message": "You are not logged in!"})
+
+    try:
+        payload = jwt.decode(token, 'BGCcret', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'})  
+    
+    user = User.objects.filter(id=payload['id']).first()
+
+    existingUser = User.objects.filter(username=new_username).first()
+    if existingUser:
+        return JsonResponse({'message': 'Username already taken'})
+
+    if user is None:
+        return JsonResponse({'message': 'User not found'})
+    
+
+    # Check if the current password is correct
+    if authenticate(username=user.username, password=password):
+        user.username = new_username 
+        user.save()
+        return JsonResponse({'message': 'Username changed successfully'}, status=200)
+    else:
+        return JsonResponse({'message': 'User info is incorrect'}, status=400)
+
+@api_view(['POST'])
+def change_password(request):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    password = data.get('password')
+    new_password = data.get('new_password')
+
+
+    if not token:
+        return JsonResponse({"message": "You are not logged in!"})
+
+    # validating jwt token
+    try:
+        payload = jwt.decode(token, 'BGCcret', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'})  
+    
+    user = User.objects.filter(id=payload['id']).first()
+
+    if user is None:
+        return JsonResponse({'message': 'User not found'})
+    
+
+    # Check if the current password is correct
+    if authenticate(username=user.username, password=password):
+        user.set_password(new_password)
+        user.save()
+        return JsonResponse({'message': 'Password changed successfully'}, status=200)
+    else:
+        return JsonResponse({'message': 'Current password is incorrect'}, status=400)
