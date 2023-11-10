@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from datetime import datetime
+from datetime import datetime, timedelta
 from .models import TimeClock, Items, Employee
 from .serializers import TimeClockSerializer, ItemsSerializer, EmployeeSerializer, UserSerializer
 from django.contrib.auth.models import User
@@ -34,7 +34,7 @@ def clock_in(request):
         return Response({'error': 'Employee does not exist'}, 505)
 
     # Create new time clock entry
-    time_clock = TimeClock(employee=employee.id, clock_type='in', time=current_time)
+    time_clock = TimeClock(employee=employee, clock_type='in', time=current_time)
     time_clock.save()
 
     serializer = TimeClockSerializer(time_clock)
@@ -58,24 +58,23 @@ def clock_out(request):
         return Response({'error': 'Employee does not exist'}, 505)
 
     # Create new time clock entry
-    time_clock = TimeClock(employee=employee.id, clock_type='out', time=current_time)
+    time_clock = TimeClock(employee=employee, clock_type='out', time=current_time)
     time_clock.save()
 
     serializer = TimeClockSerializer(time_clock)
     return Response(serializer.data, 400)
 
 @api_view(['GET'])
-def get_employee_time_clocks(request, id):
+def get_employee_time_clocks(request):
     data = json.loads(request.body)
     token = data.get('jwt')
+    employee_id = data.get('employee_id')
 
     if not token: 
         return JsonResponse({'message': 'You are not logged in!'})
-
-    try:
-        user = User.objects.get(pk=id)
-    except User.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+        
+    user = User.objects.filter(id=employee_id).first()
     
     timeclocks = TimeClock.objects.filter(employee=user.id)
     serializer = TimeClockSerializer(timeclocks, many=True)
@@ -154,7 +153,7 @@ def update_item_quantity(request):
         return Response(serializer.data)
     
 @api_view(['GET'])
-def get_users_items(request, id):
+def get_users_items(request):
     data = json.loads(request.body)
     token = data.get('jwt')
     
@@ -162,9 +161,11 @@ def get_users_items(request, id):
         return JsonResponse({'message': 'You are not logged in!'})
     
     try:
-        user = User.objects.get(pk=id)
-    except User.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'}) 
+        
+    user = User.objects.filter(id=payload['id']).first()
     
     items = Items.objects.filter(itemOwner=user.id)
     serializer = ItemsSerializer(items, many=True)
@@ -173,7 +174,7 @@ def get_users_items(request, id):
 
 #########################################
 #
-# User Authentication Views
+# User Views
 #
 #########################################
 
@@ -194,8 +195,8 @@ def login(request):
     
     payload = {
         'id': user.id,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=120),
-        'iat': datetime.datetime.utcnow()
+        'exp': datetime.utcnow() + timedelta(minutes=120),
+        'iat': datetime.utcnow()
     }
     token = jwt.encode(payload, 'CC', algorithm='HS256')  # 'CC' is the secret key needed for decryption
 
@@ -250,7 +251,7 @@ def change_username(request):
         return JsonResponse({"message": "You are not logged in!"})
 
     try:
-        payload = jwt.decode(token, 'BGCcret', algorithms=['HS256'])
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
         return JsonResponse({'message': 'Invalid web token'})  
     
@@ -285,7 +286,7 @@ def change_password(request):
 
     # validating jwt token
     try:
-        payload = jwt.decode(token, 'BGCcret', algorithms=['HS256'])
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
         return JsonResponse({'message': 'Invalid web token'})  
     
@@ -319,6 +320,29 @@ def register(request):
     user = User(email=email, username=email, first_name=first_name, last_name=last_name)
     user.set_password(password)
     user.save()
-    
+
     return JsonResponse({'message': 'User created successfully'}, status=200)
 
+@api_view(['POST'])
+def add_employee_info(request):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    pay_rate = data.get('pay_rate')
+    position = data.get('position')
+
+    if not token:
+        return JsonResponse({"message": "You are not logged in!"})
+    
+    try:
+        payload = json.decode(token, 'CC', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'})
+    
+    user = User.objects.filter(id=payload['id']).first()
+    
+    if not user:
+        return JsonResponse({'message': 'User not found'})
+    
+    employee = Employee(user=user, pay_rate=pay_rate, position=position)
+    employee.save()
+    return JsonResponse({'message': 'Employee info added successfully'}, status=200)
