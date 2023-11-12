@@ -342,7 +342,7 @@ def add_employee_info(request):
         return JsonResponse({"message": "You are not logged in!"})
     
     try:
-        payload = json.decode(token, 'CC', algorithms=['HS256'])
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
         return JsonResponse({'message': 'Invalid web token'})
     
