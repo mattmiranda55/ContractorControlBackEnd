@@ -31,14 +31,14 @@ def clock_in(request):
     try:
         employee = User.objects.get(id=employee_id)
     except User.DoesNotExist:
-        return Response({'error': 'Employee does not exist'}, 505)
+        return Response({'error': 'Employee does not exist'}, 400)
 
     # Create new time clock entry
     time_clock = TimeClock(employee=employee, clock_type='in', time=current_time)
     time_clock.save()
 
     serializer = TimeClockSerializer(time_clock)
-    return Response(serializer.data, 400)
+    return Response(serializer.data)
 
 @api_view(['POST'])
 def clock_out(request):
@@ -55,14 +55,14 @@ def clock_out(request):
     try:
         employee = User.objects.get(id=employee_id)
     except User.DoesNotExist:
-        return Response({'error': 'Employee does not exist'}, 505)
+        return Response({'error': 'Employee does not exist'}, 400)
 
     # Create new time clock entry
     time_clock = TimeClock(employee=employee, clock_type='out', time=current_time)
     time_clock.save()
 
     serializer = TimeClockSerializer(time_clock)
-    return Response(serializer.data, 400)
+    return Response(serializer.data)
 
 @api_view(['GET'])
 def get_employee_time_clocks(request):
