@@ -268,6 +268,7 @@ def change_username(request):
     # Check if the current password is correct
     if authenticate(username=user.username, password=password):
         user.username = new_username 
+        user.email = new_username
         user.save()
         return JsonResponse({'message': 'Username changed successfully'}, status=200)
     else:
