@@ -321,7 +321,15 @@ def register(request):
     user.set_password(password)
     user.save()
 
-    return JsonResponse({'message': 'User created successfully'}, status=200)
+    payload = {
+        'id': user.id,
+        'exp': datetime.utcnow() + timedelta(minutes=120),
+        'iat': datetime.utcnow()
+    }
+    token = jwt.encode(payload, 'CC', algorithm='HS256')  
+
+    return JsonResponse({'jwt': token, 'message': 'User created successfully'}, status=200)
+
 
 @api_view(['POST'])
 def add_employee_info(request):
