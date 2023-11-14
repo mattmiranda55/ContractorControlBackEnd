@@ -172,6 +172,23 @@ def get_users_items(request):
     
     return Response(serializer.data)
 
+@api_view(['POST'])
+def delete_item(request):
+    data = json.loads(request.body)
+    token = data.get('jwt')
+    item_id = data.get('item_id')
+
+    if not token:
+        return JsonResponse({"message": "You are not logged in!"})
+    
+    try:
+        item = Items.objects.get(id=item_id)
+    except:
+        return JsonResponse({"message": "Item does not exist!"})
+    
+    item.delete()
+    return JsonResponse({"message": "Item deleted successfully!"})
+
 #########################################
 #
 # User Views

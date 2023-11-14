@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/create-new-item/", views.create_new_item),
     path("api/update-item-quantity/", views.update_item_quantity),
     path("api/items/", views.get_users_items),
+    path("api/delete-item/", views.delete_item),
 
     # user endpoints
     path("api/login/", views.login),
