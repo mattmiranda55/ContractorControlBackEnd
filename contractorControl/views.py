@@ -109,11 +109,15 @@ def create_new_item(request):
     
     item_name = data.get('item_name')
     item_amount = data.get('item_amount')
-    item_owner = data.get('item_owner')
 
+    try:
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'})
+    
     # Check if item owner exists
     try:
-        owner = User.objects.get(id=item_owner)
+        owner = User.objects.get(id=payload['id']).first()
     except User.DoesNotExist:
         return Response({'error': 'User ID does not exist'})
 
