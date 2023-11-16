@@ -117,7 +117,7 @@ def create_new_item(request):
     
     # Check if item owner exists
     try:
-        owner = User.objects.get(id=payload['id']).first()
+        owner = User.objects.get(id=payload['id'])
     except User.DoesNotExist:
         return Response({'error': 'User ID does not exist'})
 
@@ -169,7 +169,7 @@ def get_users_items(request):
     except jwt.ExpiredSignatureError:
         return JsonResponse({'message': 'Invalid web token'}) 
         
-    user = User.objects.filter(id=payload['id']).first()
+    user = User.objects.filter(id=payload['id'])
     
     items = Items.objects.filter(itemOwner=user.id)
     serializer = ItemsSerializer(items, many=True)
