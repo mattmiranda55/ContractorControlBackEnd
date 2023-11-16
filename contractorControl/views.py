@@ -67,15 +67,19 @@ def clock_out(request):
 @api_view(['GET'])
 def get_employee_time_clocks(request):
     token = request.GET.get('jwt')
-    employee_id = request.GET.get('employee_id')
 
     if not token: 
         return JsonResponse({'message': 'You are not logged in!'})
-        
-    user = User.objects.filter(id=employee_id).first()
     
-    if not user:
-        return JsonResponse({'message': 'Invalid employee ID!'})
+    try:
+        payload = jwt.decode(token, 'CC', algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({'message': 'Invalid web token'})
+    
+    try:
+        user = User.objects.get(id=payload.get('id'))
+    except User.DoesNotExist:
+        return Response({'error': 'User ID does not exist'})
     
     timeclocks = TimeClock.objects.filter(employee=user)
     serializer = TimeClockSerializer(timeclocks, many=True)
