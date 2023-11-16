@@ -66,17 +66,18 @@ def clock_out(request):
 
 @api_view(['GET'])
 def get_employee_time_clocks(request):
-    data = json.loads(request.body)
-    token = data.get('jwt')
-    employee_id = data.get('employee_id')
+    token = request.GET.get('jwt')
+    employee_id = request.GET.get('employee_id')
 
     if not token: 
         return JsonResponse({'message': 'You are not logged in!'})
-    
         
     user = User.objects.filter(id=employee_id).first()
     
-    timeclocks = TimeClock.objects.filter(employee=user.id)
+    if not user:
+        return JsonResponse({'message': 'Invalid employee ID!'})
+    
+    timeclocks = TimeClock.objects.filter(employee=user)
     serializer = TimeClockSerializer(timeclocks, many=True)
     
     return Response(serializer.data)
