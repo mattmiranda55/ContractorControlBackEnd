@@ -12,7 +12,7 @@ class Items(models.Model):
 class TimeClock(models.Model):
     employee = models.ForeignKey(User, on_delete=models.CASCADE)
     clock_type = models.CharField(max_length=3, choices=[('in', 'In'), ('out', 'Out')])
-    time = models.DateTimeField(default=timezone.now, null=True, blank=True)
+    time = models.TimeField(default=timezone.now, null=True, blank=True)
 
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
