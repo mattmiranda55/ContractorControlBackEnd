@@ -125,9 +125,9 @@ def create_new_item(request):
     item = Items(itemName=item_name, itemAmount=item_amount, itemOwner=owner)
     item.save()
 
-    serializer = ItemsSerializer(item)
-    return Response(serializer.data)
-
+    # serializer = ItemsSerializer(item)
+    return JsonResponse({"message": "Item added successfully!"})
+                         
 @api_view(['POST'])
 def update_item_quantity(request):
     data = json.loads(request.body)
@@ -158,23 +158,27 @@ def update_item_quantity(request):
     
 @api_view(['GET'])
 def get_users_items(request):
-    data = json.loads(request.body)
-    token = data.get('jwt')
-    
+    token = request.headers.get('Authorization', '').split('Bearer ')[-1]
+
     if not token: 
-        return JsonResponse({'message': 'You are not logged in!'})
-    
+        return Response({'message': 'You are not logged in!'}, status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         payload = jwt.decode(token, 'CC', algorithms=['HS256'])
     except jwt.ExpiredSignatureError:
-        return JsonResponse({'message': 'Invalid web token'}) 
+        return Response({'message': 'Invalid web token'}, status=status.HTTP_401_UNAUTHORIZED)
         
-    user = User.objects.filter(id=payload['id'])
-    
+    users = User.objects.filter(id=payload['id'])
+
+    if not users.exists():
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    user = users.first()
+
     items = Items.objects.filter(itemOwner=user.id)
     serializer = ItemsSerializer(items, many=True)
     
-    return Response(serializer.data)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 def delete_item(request):
