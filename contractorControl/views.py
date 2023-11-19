@@ -25,7 +25,7 @@ def clock_in(request):
     if not token: 
         return JsonResponse({'message': 'You are not logged in!'})
     
-    current_time = datetime.now()
+    current_time = datetime.now().time()
 
     # Check if employee exists
     try:
@@ -49,7 +49,7 @@ def clock_out(request):
     if not token: 
         return JsonResponse({'message': 'You are not logged in!'})
     
-    current_time = datetime.now()
+    current_time = datetime.now().time()
 
     # Check if employee exists
     try:
